@@ -1,0 +1,43 @@
+name: Deploy with Ngrok
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  run-server:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy pandas flask tensorflow
+
+    - name: Install ngrok
+      run: |
+        npm install -g ngrok
+
+    - name: Start app in background
+      run: |
+        python app.py &
+        sleep 5  # give server time to start
+
+    - name: Start ngrok tunnel
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      run: |
+        ngrok authtoken $NGROK_AUTH_TOKEN
+        ngrok http 5000 > ngrok.log &
+        sleep 5
+        curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+
+    - name: Keep alive
+      run: sleep 10m
